@@ -4,7 +4,7 @@ locals {
   
   # Final resource names with override capability
   rg_final = var.resource_group_name != "" ? var.resource_group_name : "rg-${var.name_prefix}-${local.effective_suffix}"
-  sa_final = var.storage_account_name != "" ? var.storage_account_name : "st${var.name_prefix}${local.effective_suffix}"
+  sa_final = var.storage_account_name != "" ? var.storage_account_name : "st${replace(var.name_prefix, "-", "")}${local.effective_suffix}"
   kv_final = var.kv_name != "" ? var.kv_name : "kv-${var.name_prefix}-${local.effective_suffix}"
   
   # Combine current user with extra principals for RBAC assignments

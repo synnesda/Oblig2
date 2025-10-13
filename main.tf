@@ -44,7 +44,7 @@ resource "azurerm_storage_account" "sa" {
   identity { type = "SystemAssigned" }
 
   blob_properties {
-    versioning_enabled = true
+    versioning_enabled = var.account_tier == "Standard" ? true : false
     delete_retention_policy { days = 14 }
     container_delete_retention_policy { days = 14 }
   }
