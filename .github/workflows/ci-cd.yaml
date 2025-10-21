@@ -28,10 +28,11 @@ on:
 
 env:
   TF_VERSION: '1.6.0'
-  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  # Keep only TF_VERSION here; Azure credentials are consumed directly from secrets
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   terraform-validate:
@@ -79,6 +80,30 @@ jobs:
       with:
         sarif_file: 'trivy-results.sarif'
 
+  terraform-tfsec:
+    name: 'tfsec static scan'
+    runs-on: ubuntu-latest
+    needs: terraform-security-scan
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install tfsec
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+    - name: Run tfsec
+      run: |
+        tfsec .
+
+    - name: Upload tfsec results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: tfsec-report
+        path: .tfsec
+
   terraform-plan-dev:
     name: 'Plan - Dev Environment'
     runs-on: ubuntu-latest
@@ -94,16 +119,38 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Azure Login (OIDC)
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Terraform Init
       run: terraform init -backend-config=environments/dev/backend.hcl
 
     - name: Terraform Plan
       run: terraform plan -var-file=environments/dev/dev.tfvars -out=dev.tfplan
+
+    - name: Show Plan
+      id: show-plan
+      run: |
+        terraform show -no-color dev.tfplan > plan.txt || true
+        echo "plan<<EOF" >> $GITHUB_OUTPUT
+        cat plan.txt >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Comment Plan on PR
+      if: github.event_name == 'pull_request'
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        issue-number: ${{ github.event.pull_request.number }}
+        body: |
+          ### Terraform plan — dev
+          ```terraform
+          ${{ steps.show-plan.outputs.plan }}
+          ```
 
     - name: Upload Dev Plan
       uses: actions/upload-artifact@v3
@@ -117,7 +164,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: terraform-plan-dev
     if: github.ref == 'refs/heads/develop'
-    environment: dev
+    environment:
+      name: dev
     
     steps:
     - name: Checkout
@@ -128,10 +176,12 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Azure Login (OIDC)
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Download Plan
       uses: actions/download-artifact@v3
@@ -159,16 +209,38 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Azure Login (OIDC)
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Terraform Init
       run: terraform init -backend-config=environments/test/backend.hcl
 
     - name: Terraform Plan
       run: terraform plan -var-file=environments/test/test.tfvars -out=test.tfplan
+
+    - name: Show Plan
+      id: show-plan
+      run: |
+        terraform show -no-color test.tfplan > plan.txt || true
+        echo "plan<<EOF" >> $GITHUB_OUTPUT
+        cat plan.txt >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Comment Plan on PR
+      if: github.event_name == 'pull_request'
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        issue-number: ${{ github.event.pull_request.number }}
+        body: |
+          ### Terraform plan — test
+          ```terraform
+          ${{ steps.show-plan.outputs.plan }}
+          ```
 
     - name: Upload Test Plan
       uses: actions/upload-artifact@v3
@@ -182,7 +254,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: terraform-plan-test
     if: github.ref == 'refs/heads/main'
-    environment: test
+    environment:
+      name: test
     
     steps:
     - name: Checkout
@@ -193,10 +266,12 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Azure Login (OIDC)
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Download Plan
       uses: actions/download-artifact@v3
@@ -214,7 +289,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: terraform-deploy-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
-    environment: 
+    environment:
       name: production
       url: https://portal.azure.com
     
@@ -227,10 +302,12 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Azure Login (OIDC)
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Terraform Init
       run: terraform init -backend-config=environments/prod/backend.hcl
@@ -264,10 +341,15 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Azure Login (OIDC)
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    # Legacy fallback removed — this workflow now requires OIDC-configured service principal.
+    # To re-enable legacy login, add an azure/login step with creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Terraform Init
       run: terraform init -backend-config=environments/${{ github.event.inputs.environment }}/backend.hcl

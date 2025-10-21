@@ -147,6 +147,28 @@ terraform destroy -var-file="environments/dev/dev.tfvars"
 - **Soft delete protection** on Key Vault
 - **Federated Credentials** for GitHub Actions authentication
 
+### GitHub Actions: Configure OIDC (recommended)
+
+This repository's CI workflow is configured to use GitHub Actions OIDC to authenticate to Azure via the `azure/login` action. OIDC avoids storing long-lived service principal secrets in GitHub and is the recommended approach.
+
+Quick setup steps:
+
+1. Create a Service Principal in Azure (or use an existing one) and note its client id, subscription id and tenant id.
+2. In the Azure portal, open the service principal and add a Federated Identity Credential that trusts your GitHub repository (see Microsoft docs: "Workload identity federation").
+    - Audience: `api://AzureADTokenExchange` (default)
+    - Subject: `repo:<owner>/<repo>:ref:refs/heads/<branch>` or use `repo:<owner>/<repo>:environment:<environment>` for environment-restricted tokens.
+3. In your GitHub repository, add the following repository secrets:
+    - `AZURE_CLIENT_ID` (service principal client id)
+    - `AZURE_SUBSCRIPTION_ID` (subscription id)
+    - `AZURE_TENANT_ID` (tenant id)
+
+Notes:
+- The workflow uses `permissions: id-token: write` so OIDC tokens can be requested by the action. Ensure you keep that permission in the workflow YAML.
+- You no longer need to store the `AZURE_CLIENT_SECRET` or `AZURE_CREDENTIALS` secret when using OIDC; remove them from repo secrets if present.
+- For more details, see the official guide: https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure
+
+Note: I removed the legacy `AZURE_CREDENTIALS` fallback from the CI workflow and switched tfsec to fail the job on findings. Configure OIDC in Azure before running CI; otherwise workflow runs that reach the azure/login step will fail.
+
 ## Naming Convention
 
 Resources follow the pattern: `{type}-{prefix}-{suffix}`
@@ -204,6 +226,29 @@ Resources follow the pattern: `{type}-{prefix}-{suffix}`
 .\scripts\deploy.ps1 -Environment test -Destroy  
 .\scripts\deploy.ps1 -Environment dev -Destroy
 ```
+
+## Resource Group ownership & placement
+
+### Background
+In the instructor's feedback you were asked to reflect on who should "own" the Resource Group. This is an important architectural decision: the Resource Group is a management boundary in Azure that affects billing, access control, lifecycle, and team responsibilities.
+
+### Options
+- Resource Group created inside each service module (module-owned): convenient but couples ownership to the module and makes reuse harder.
+- Resource Group created in the root module (platform/infrastructure-owned): explicit ownership, better separation of concerns, easier cross-service policies and RBAC.
+- Dedicated RG module (team-owned): centralized module that a platform team maintains and that other modules accept as input.
+
+### Recommendation (applied in this repository)
+This project follows the **root-level Resource Group** approach: the RG is created in the root module and its name is passed into resources and modules. Rationale:
+- Makes ownership explicit for platform/operators
+- Keeps service modules composable and reusable (they accept a `resource_group_name` variable)
+- Enables centralized RBAC, tagging and lifecycle management
+
+See the instructor's walkthrough and rationale here:
+https://github.com/LearnIAC-TIM/iac-terraform/blob/main/course%20materials/WalkThrough-Oblig/terraform_losningsforslag_oppsummering_med_rg_locals_case.md
+
+If you'd like, I can refactor the code to move RG creation into a small `platform` module or update service modules to accept `resource_group_name` as an input — tell me which option you prefer and I'll implement it.
+
+Note: this repository now includes a small `modules/platform` module which owns the Resource Group. The root module calls `module.platform` and other resources use `module.platform.name` as the RG input. This follows the recommended pattern described above.
 
 ## Complete Deployment Flow
 
