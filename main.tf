@@ -7,7 +7,7 @@ terraform {
 
   required_providers {
     azurerm = { source = "hashicorp/azurerm", version = "~> 4.40.0" }
-    random  = { source = "hashicorp/random",  version = "~> 3.6" }
+    random  = { source = "hashicorp/random", version = "~> 3.6" }
   }
 }
 
@@ -53,7 +53,7 @@ resource "azurerm_storage_account" "sa" {
     container_delete_retention_policy { days = 14 }
   }
 
-  https_traffic_only_enabled     = true
+  https_traffic_only_enabled      = true
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = true
   tags                            = var.tags
@@ -66,16 +66,16 @@ resource "azurerm_storage_container" "state" {
 }
 
 resource "azurerm_key_vault" "kv" {
-  name                       = local.kv_final
-  location                   = var.location
-  resource_group_name        = module.platform.name
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  sku_name                   = var.kv_sku_name
-  soft_delete_retention_days = 90
-  purge_protection_enabled   = true
-  enable_rbac_authorization  = true
+  name                          = local.kv_final
+  location                      = var.location
+  resource_group_name           = module.platform.name
+  tenant_id                     = data.azurerm_client_config.current.tenant_id
+  sku_name                      = var.kv_sku_name
+  soft_delete_retention_days    = 90
+  purge_protection_enabled      = true
+  enable_rbac_authorization     = true
   public_network_access_enabled = true
-  tags = var.tags
+  tags                          = var.tags
 }
 
 resource "azurerm_role_assignment" "sa_blob_contributor" {
