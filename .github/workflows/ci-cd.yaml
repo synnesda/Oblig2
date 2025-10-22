@@ -76,8 +76,8 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results
+      if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       uses: github/codeql-action/upload-sarif@v3
-      if: always()
       with:
         sarif_file: 'trivy-results.sarif'
 
