@@ -76,6 +76,22 @@ jobs:
         format: 'sarif'
         output: 'trivy-results.sarif'
 
+    - name: Debug SARIF upload context
+      if: always()
+      run: |
+        echo "GITHUB_EVENT_NAME=$GITHUB_EVENT_NAME"
+        echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
+        echo "GITHUB_EVENT_PATH=$GITHUB_EVENT_PATH"
+        if [ -f "$GITHUB_EVENT_PATH" ]; then
+          echo "--- Event JSON start ---"
+          # Try to pretty-print with jq if available, otherwise fallback to cat
+          (cat "$GITHUB_EVENT_PATH" | jq .) || cat "$GITHUB_EVENT_PATH"
+          echo "--- Event JSON end ---"
+        else
+          echo "No GITHUB_EVENT_PATH file present"
+        fi
+      shell: bash
+
     - name: Upload Trivy scan results
       if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       uses: github/codeql-action/upload-sarif@v3
