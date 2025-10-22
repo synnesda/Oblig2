@@ -24,7 +24,7 @@ resource "azurerm_storage_account" "sa" {
     container_delete_retention_policy { days = 7 }
   }
 
-  https_traffic_only_enabled     = true
+  https_traffic_only_enabled      = true
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = true
 }
