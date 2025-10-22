@@ -28,7 +28,11 @@ resource "random_integer" "auto_suffix" {
 
 # Locals moved to locals.tf for better organization
 
-resource "azurerm_resource_group" "rg" {
+// Use a small platform module to own the Resource Group. This keeps ownership
+// explicit while keeping service modules reusable (they should accept the
+// RG name or id as an input).
+module "platform" {
+  source   = "./modules/platform"
   name     = local.rg_final
   location = var.location
   tags     = var.tags
@@ -36,8 +40,8 @@ resource "azurerm_resource_group" "rg" {
 
 resource "azurerm_storage_account" "sa" {
   name                     = local.sa_final
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
+  resource_group_name      = module.platform.name
+  location                 = var.location
   account_tier             = var.account_tier
   account_replication_type = var.account_replication_type
 
@@ -63,8 +67,8 @@ resource "azurerm_storage_container" "state" {
 
 resource "azurerm_key_vault" "kv" {
   name                       = local.kv_final
-  location                   = azurerm_resource_group.rg.location
-  resource_group_name        = azurerm_resource_group.rg.name
+  location                   = var.location
+  resource_group_name        = module.platform.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
   sku_name                   = var.kv_sku_name
   soft_delete_retention_days = 90

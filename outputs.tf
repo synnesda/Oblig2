@@ -1,11 +1,11 @@
 output "resource_group_name" {
   description = "Name of the created resource group"
-  value       = azurerm_resource_group.rg.name
+  value       = module.platform.name
 }
 
 output "resource_group_id" {
   description = "ID of the created resource group"
-  value       = azurerm_resource_group.rg.id
+  value       = module.platform.id
 }
 
 output "storage_account_name" {
@@ -58,7 +58,7 @@ output "deployment_info" {
   description = "Summary of deployed resources"
   value = {
     environment           = var.tags.environment
-    resource_group       = azurerm_resource_group.rg.name
+    resource_group       = module.platform.name
     storage_account      = azurerm_storage_account.sa.name
     key_vault           = azurerm_key_vault.kv.name
     location            = var.location
