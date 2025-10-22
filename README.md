@@ -79,251 +79,123 @@ terraform destroy -var-file="environments/dev/dev.tfvars"
 | **prod**    | Standard | GRS | premium | High availability production |
 
 ## Project Structure
+## Azure Terraform Infrastructure Project
 
-```
-├── main.tf              # Main infrastructure configuration
-├── variables.tf         # Variable definitions with validation
-├── outputs.tf           # Infrastructure outputs
-├── locals.tf           # Local value calculations
-├── backend/            # Backend state storage setup
-│   ├── main.tf
-│   └── backend.hcl
-├── environments/       # Environment-specific configurations
-│   ├── dev/
-│   │   ├── dev.tfvars
-│   │   └── backend.hcl
-│   ├── test/
-│   └── prod/
-└── scripts/
-    └── deploy.ps1      # PowerShell deployment automation
-```
+This repository deploys core Azure infrastructure across multiple environments (dev, test, prod) using Terraform. It includes a platform-owned Resource Group module and a CI pipeline with OIDC authentication, security scans, and PR plan comments.
 
-## Assignment Requirements Fulfillment
+## What's new (recent changes)
+- CI now requires GitHub OIDC (workload identity federation) with `azure/login@v2`. Legacy service-principal secret fallback has been removed.
+- Terraform provider lockfile: `.terraform.lock.hcl` is committed for reproducible provider versions.
+- Static security scanning added: `tfsec` runs in CI and now fails the job on findings.
+- Plan artifacts are uploaded and plan outputs are posted as PR comments (plan-commenter action).
+- `docs/azure-oidc.md` added with step-by-step instructions to create the federated credential in Azure.
 
-### IaC Principles Implementation
-✅ **Versioned Infrastructure**: All code stored in Git with full history tracking  
-✅ **Traceability**: Every change tracked through commits and PR workflow  
-✅ **Rapid Recertification**: Complete rebuild possible from code within minutes  
-✅ **Environment Parity**: Same code deploys to all environments with different configuration  
-✅ **Build Once, Deploy Many**: Single validated codebase deployed across dev/test/prod  
-✅ **Trunk-based Development**: Feature branches → PR → main branch workflow  
+## Architecture
 
-### Multi-Environment Support
-- **Development**: Standard/LRS for cost optimization
-- **Test**: Premium/LRS for performance testing (prod-like performance)  
-- **Production**: Standard/GRS for high availability as required
+- Resource Group (platform-owned via `modules/platform`)
+- Storage Account for Terraform state (one container per environment)
+- Key Vault using RBAC authorization (no access policies)
+- Role assignments for state and Key Vault operations
 
-### Complete Deployment Workflow
+## Quick Start
 
-#### 1. Local Development & Feature Branches
-- Developers work locally and create feature branches
-- Code pushed to GitHub triggers automated validation
-- Pull Requests ensure code review before main branch
+### Prerequisites
+- Azure CLI (az) and logged in (`az login`)
+- Terraform >= 1.6.0
+- PowerShell (optional; `scripts/deploy.ps1` is PowerShell)
 
-#### 2. Continuous Integration (CI)
-- **Format Validation**: `terraform fmt -check -recursive`
-- **Syntax Validation**: `terraform validate` 
-- **Security Scanning**: Trivy vulnerability scanner
-- **Multi-Environment Planning**: Plans generated for all environments
-- **PR Comments**: Plan results posted for review
-
-#### 3. Continuous Deployment (CD)  
-- **Dev Environment**: Auto-deployed on develop branch
-- **Test Environment**: Auto-deployed after dev success on main
-- **Production**: Manual approval required for production deployments
-
-### Team Collaboration Features
-- **No Merge Conflicts**: Separate state files per environment
-- **Parallel Development**: Backend state locking prevents conflicts
-- **Automated Workflows**: Reduces manual deployment errors
-- **Environment Protection**: GitHub environment protections for prod
-
-## Security Features
-
-- **RBAC Authorization** on Key Vault (no access policies)
-- **HTTPS-only** storage accounts
-- **Private containers** for state storage
-- **Blob versioning** and retention policies
-- **Soft delete protection** on Key Vault
-- **Federated Credentials** for GitHub Actions authentication
-
-### GitHub Actions: Configure OIDC (recommended)
-
-This repository's CI workflow is configured to use GitHub Actions OIDC to authenticate to Azure via the `azure/login` action. OIDC avoids storing long-lived service principal secrets in GitHub and is the recommended approach.
-
-Quick setup steps:
-
-1. Create a Service Principal in Azure (or use an existing one) and note its client id, subscription id and tenant id.
-2. In the Azure portal, open the service principal and add a Federated Identity Credential that trusts your GitHub repository (see Microsoft docs: "Workload identity federation").
-    - Audience: `api://AzureADTokenExchange` (default)
-    - Subject: `repo:<owner>/<repo>:ref:refs/heads/<branch>` or use `repo:<owner>/<repo>:environment:<environment>` for environment-restricted tokens.
-3. In your GitHub repository, add the following repository secrets:
-    - `AZURE_CLIENT_ID` (service principal client id)
-    - `AZURE_SUBSCRIPTION_ID` (subscription id)
-    - `AZURE_TENANT_ID` (tenant id)
-
-Notes:
-- The workflow uses `permissions: id-token: write` so OIDC tokens can be requested by the action. Ensure you keep that permission in the workflow YAML.
-- You no longer need to store the `AZURE_CLIENT_SECRET` or `AZURE_CREDENTIALS` secret when using OIDC; remove them from repo secrets if present.
-- For more details, see the official guide: https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure
-
-Note: I removed the legacy `AZURE_CREDENTIALS` fallback from the CI workflow and switched tfsec to fail the job on findings. Configure OIDC in Azure before running CI; otherwise workflow runs that reach the azure/login step will fail.
-
-## Naming Convention
-
-Resources follow the pattern: `{type}-{prefix}-{suffix}`
-- Resource Groups: `rg-{prefix}-{suffix}`  
-- Storage Accounts: `st{prefix}{suffix}` (no hyphens, Azure naming restrictions)
-- Key Vaults: `kv-{prefix}-{suffix}`
-
-## Infrastructure Components
-
-### Required Components (Per Assignment)
-✅ **Resource Group**: Logical organization of resources  
-✅ **Storage Account**: Data storage with tier-appropriate configuration  
-✅ **Key Vault**: Secrets management (additional security enhancement)
-
-### Terraform Best Practices
-- **Input Variables**: Comprehensive variable definitions with validation
-- **Local Values**: Smart naming logic and resource calculations  
-- **Environment Configuration**: Separate .tfvars for each environment
-- **Backend State Management**: Remote state with Azure Storage
-- **Provider Consistency**: Locked provider versions across environments
-
-## Recommended Deployment Workflow
-
-### 1. Development First (Always start here)
+### 1) Create backend resources (once)
 ```powershell
-# Deploy to dev for testing
+cd backend
+terraform init
+terraform apply
+```
+
+### 2) Deploy an environment (example: dev)
+```powershell
+# Plan
+.\scripts\deploy.ps1 -Environment dev
+
+# Apply
 .\scripts\deploy.ps1 -Environment dev -Apply
 
-# Verify everything works
-# Make any necessary adjustments
-```
-
-### 2. Test Environment (Performance validation)
-```powershell
-# Deploy same code to test environment
-.\scripts\deploy.ps1 -Environment test -Apply
-
-# Validate performance with Premium storage
-# Ensure prod-like behavior
-```
-
-### 3. Production Deployment (Final step)
-```powershell
-# Deploy to production with high availability
-.\scripts\deploy.ps1 -Environment prod -Apply
-
-# Monitor deployment
-# Verify GRS replication is working
-```
-
-### 4. Cleanup (When done)
-```powershell
-# Clean up in reverse order
-.\scripts\deploy.ps1 -Environment prod -Destroy
-.\scripts\deploy.ps1 -Environment test -Destroy  
+# Destroy
 .\scripts\deploy.ps1 -Environment dev -Destroy
 ```
 
-## Resource Group ownership & placement
-
-### Background
-In the instructor's feedback you were asked to reflect on who should "own" the Resource Group. This is an important architectural decision: the Resource Group is a management boundary in Azure that affects billing, access control, lifecycle, and team responsibilities.
-
-### Options
-- Resource Group created inside each service module (module-owned): convenient but couples ownership to the module and makes reuse harder.
-- Resource Group created in the root module (platform/infrastructure-owned): explicit ownership, better separation of concerns, easier cross-service policies and RBAC.
-- Dedicated RG module (team-owned): centralized module that a platform team maintains and that other modules accept as input.
-
-### Recommendation (applied in this repository)
-This project follows the **root-level Resource Group** approach: the RG is created in the root module and its name is passed into resources and modules. Rationale:
-- Makes ownership explicit for platform/operators
-- Keeps service modules composable and reusable (they accept a `resource_group_name` variable)
-- Enables centralized RBAC, tagging and lifecycle management
-
-See the instructor's walkthrough and rationale here:
-https://github.com/LearnIAC-TIM/iac-terraform/blob/main/course%20materials/WalkThrough-Oblig/terraform_losningsforslag_oppsummering_med_rg_locals_case.md
-
-If you'd like, I can refactor the code to move RG creation into a small `platform` module or update service modules to accept `resource_group_name` as an input — tell me which option you prefer and I'll implement it.
-
-Note: this repository now includes a small `modules/platform` module which owns the Resource Group. The root module calls `module.platform` and other resources use `module.platform.name` as the RG input. This follows the recommended pattern described above.
-
-## Complete Deployment Flow
-
-### Step 1: Local Development
-```bash
-# Create feature branch
-git checkout -b feature/new-infrastructure
-
-# Develop locally
-terraform init -backend-config=environments/dev/backend.hcl
-terraform plan -var-file=environments/dev/dev.tfvars
-
-# Commit and push
-git add .
-git commit -m "Add new infrastructure component"
-git push origin feature/new-infrastructure
+Alternative: use terraform directly per environment
+```powershell
+terraform init -backend-config="environments/dev/backend.hcl" -reconfigure
+terraform plan -var-file="environments/dev/dev.tfvars"
+terraform apply -var-file="environments/dev/dev.tfvars"
 ```
 
-### Step 2: Pull Request & CI
-1. Create PR against main branch
-2. CI pipeline automatically runs:
-   - Format check (`terraform fmt`)
-   - Validation (`terraform validate`)
-   - Security scan (Trivy)
-   - Multi-environment planning
-3. Plan results posted as PR comment
-4. Code review and approval
-5. Merge to main
+## CI / GitHub Actions
 
-### Step 3: Automated Deployment
+- The workflow is at `.github/workflows/ci-cd.yaml` and runs:
+  - `terraform fmt` and `terraform validate`
+  - Trivy config scan
+  - `tfsec` (static security checks) — CI will fail on findings
+  - Per-environment `terraform plan` with plan artifacts uploaded
+  - PR plan-comments using `peter-evans/create-or-update-comment`
+  - Manual approval step before production apply
+
+Important: configure OIDC before running CI. See `docs/azure-oidc.md`.
+
+## Security notes
+
+- Key Vault uses RBAC (`enable_rbac_authorization = true`).
+- State is stored in a private blob container with role assignments for `Storage Blob Data Contributor`.
+- `tfsec` runs in CI and will fail the job for issues — triage or fix findings before merge.
+
+## How to configure OIDC (short)
+
+Follow `docs/azure-oidc.md` for exact `az`/`az rest` commands. In short:
+1. Create (or reuse) a service principal and note `appId` (client id) and `objectId`.
+2. Add a federated identity credential to the app with subject `repo:<OWNER>/<REPO>:ref:refs/heads/<branch>` or `repo:<OWNER>/<REPO>:environment:<environment>`.
+3. Add repo secrets: `AZURE_CLIENT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`.
+
+## Project structure
+
 ```
-main branch merge → Test Environment → Production (manual approval)
-```
-
-### Step 4: Manual Operations (if needed)
-Use GitHub Actions manual dispatch for:
-- Emergency deployments
-- Environment-specific operations  
-- Infrastructure destruction
-
-## File Structure Explanation
-
-```
-.
+. 
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yaml           # Complete CI/CD pipeline
-├── backend/
-│   ├── main.tf                  # Backend storage infrastructure
-│   └── backend.hcl              # Backend configuration
-├── environments/
-│   ├── dev/
-│   │   ├── dev.tfvars          # Dev environment configuration
-│   │   └── backend.hcl         # Dev backend config
-│   ├── test/
-│   │   ├── test.tfvars         # Test environment configuration  
-│   │   └── backend.hcl         # Test backend config
-│   └── prod/
-│       ├── prod.tfvars         # Prod environment configuration
-│       └── backend.hcl         # Prod backend config
+│       └── ci-cd.yaml        # CI pipeline (OIDC, tfsec, trivy, plan commenter)
+├── backend/                  # Backend infra for Terraform state
+├── docs/
+│   └── azure-oidc.md         # OIDC/federated credential setup
+├── environments/             # dev/test/prod .tfvars + backend configs
+├── modules/
+│   └── platform/             # platform module which owns the Resource Group
 ├── scripts/
-│   └── deploy.ps1              # PowerShell deployment automation
-├── main.tf                     # Main infrastructure code
-├── variables.tf                # Input variable definitions
-├── locals.tf                   # Local value calculations  
-├── outputs.tf                  # Infrastructure outputs
-└── README.md                   # This documentation
+│   └── deploy.ps1            # PowerShell deployment helper
+├── main.tf                   # Root module wiring resources and calling modules
+├── variables.tf
+├── locals.tf
+├── outputs.tf
+└── .terraform.lock.hcl       # Provider lockfile (committed)
 ```
 
-## Key Learning Outcomes
+## Common commands
 
-This project demonstrates:
-1. **IaC Principles**: Infrastructure as Code best practices
-2. **Multi-Environment Management**: dev/test/prod configuration
-3. **CI/CD Implementation**: Automated testing and deployment
-4. **Security**: RBAC, secret management, vulnerability scanning
-5. **Team Collaboration**: Trunk-based development, PR workflow
-6. **Azure Integration**: Native Azure services and authentication
+```powershell
+# create provider lockfile (done in repo)
+terraform providers lock -platform=linux_amd64 -platform=windows_amd64 -platform=darwin_amd64
+
+# plan for dev
+terraform init -backend-config="environments/dev/backend.hcl" -reconfigure
+terraform plan -var-file="environments/dev/dev.tfvars"
+
+# run tfsec locally
+tfsec .
+```
+
+## Final checklist before submission
+
+- OIDC federated credential created in Azure and repo secrets set
+- CI run succeeds (trivy + tfsec + format/validate + plan)
+- `.terraform.lock.hcl` committed (done)
+- PR plan comments appear on PRs (enabled)
+
+If you want, I can draft a short submission note that explains the security improvements and highlights the items tested. Paste any tfsec findings here and I will help triage them.
