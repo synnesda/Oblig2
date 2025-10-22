@@ -76,7 +76,7 @@ terraform destroy -var-file="environments/dev/dev.tfvars"
 |-------------|------|-------------|---------------|-------------|
 | **dev**     | Standard | LRS | standard | Cost-effective development |
 | **test**    | Premium | LRS | standard | Performance testing (prod-like) |
-| **prod**    | Standard | GRS | premium | High availability production |
+| **prod**    | Premium | GRS | premium | High availability production |
 
 ## Project Structure
 ## Azure Terraform Infrastructure Project
