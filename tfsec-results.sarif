@@ -1,0 +1,74 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0-rtm.5.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "informationUri": "https://github.com/aquasecurity/defsec",
+          "name": "defsec",
+          "rules": [
+            {
+              "id": "azure-keyvault-specify-network-acl",
+              "shortDescription": {
+                "text": "Key vault should have the network acl block specified"
+              },
+              "helpUri": "https://aquasecurity.github.io/tfsec/v1.28.14/checks/azure/keyvault/specify-network-acl/"
+            },
+            {
+              "id": "azure-storage-use-secure-tls-policy",
+              "shortDescription": {
+                "text": "The minimum TLS version for Storage Accounts should be TLS1_2"
+              },
+              "helpUri": "https://aquasecurity.github.io/tfsec/v1.28.14/checks/azure/storage/use-secure-tls-policy/"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "azure-keyvault-specify-network-acl",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Vault network ACL does not block access by default."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "C:\\Users\\Synne Skreosen Dahl\\OneDrive - NTNU\\Infrastruktur som kode mappe\\Oblig2\\main.tf"
+                },
+                "region": {
+                  "startLine": 64,
+                  "endLine": 75
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "azure-storage-use-secure-tls-policy",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "Storage account uses an insecure TLS version."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "C:\\Users\\Synne Skreosen Dahl\\OneDrive - NTNU\\Infrastruktur som kode mappe\\Oblig2\\main.tf"
+                },
+                "region": {
+                  "startLine": 37,
+                  "endLine": 56
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

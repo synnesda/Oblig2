@@ -1,0 +1,50 @@
+{
+	"results": [
+		{
+			"rule_id": "AVD-AZU-0013",
+			"long_id": "azure-keyvault-specify-network-acl",
+			"rule_description": "Key vault should have the network acl block specified",
+			"rule_provider": "azure",
+			"rule_service": "keyvault",
+			"impact": "Without a network ACL the key vault is freely accessible",
+			"resolution": "Set a network ACL for the key vault",
+			"links": [
+				"https://aquasecurity.github.io/tfsec/v1.28.14/checks/azure/keyvault/specify-network-acl/",
+				"https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault#network_acls"
+			],
+			"description": "Vault network ACL does not block access by default.",
+			"severity": "CRITICAL",
+			"warning": false,
+			"status": 0,
+			"resource": "azurerm_key_vault.kv",
+			"location": {
+				"filename": "C:\\Users\\Synne Skreosen Dahl\\OneDrive - NTNU\\Infrastruktur som kode mappe\\Oblig2\\main.tf",
+				"start_line": 64,
+				"end_line": 75
+			}
+		},
+		{
+			"rule_id": "AVD-AZU-0011",
+			"long_id": "azure-storage-use-secure-tls-policy",
+			"rule_description": "The minimum TLS version for Storage Accounts should be TLS1_2",
+			"rule_provider": "azure",
+			"rule_service": "storage",
+			"impact": "The TLS version being outdated and has known vulnerabilities",
+			"resolution": "Use a more recent TLS/SSL policy for the load balancer",
+			"links": [
+				"https://aquasecurity.github.io/tfsec/v1.28.14/checks/azure/storage/use-secure-tls-policy/",
+				"https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account#min_tls_version"
+			],
+			"description": "Storage account uses an insecure TLS version.",
+			"severity": "CRITICAL",
+			"warning": false,
+			"status": 0,
+			"resource": "azurerm_storage_account.sa",
+			"location": {
+				"filename": "C:\\Users\\Synne Skreosen Dahl\\OneDrive - NTNU\\Infrastruktur som kode mappe\\Oblig2\\main.tf",
+				"start_line": 37,
+				"end_line": 56
+			}
+		}
+	]
+}

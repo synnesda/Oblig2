@@ -78,7 +78,7 @@ resource "azurerm_key_vault" "kv" {
     ip_rules                   = []
     virtual_network_subnet_ids = []
   }
-  tags                          = var.tags
+  tags = var.tags
 }
 
 resource "azurerm_role_assignment" "sa_blob_contributor" {
