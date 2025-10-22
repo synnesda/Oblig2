@@ -50,6 +50,7 @@ resource "azurerm_storage_account" "sa" {
   }
 
   https_traffic_only_enabled      = true
+  min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = true
   tags                            = var.tags
@@ -70,7 +71,13 @@ resource "azurerm_key_vault" "kv" {
   soft_delete_retention_days    = 90
   purge_protection_enabled      = true
   enable_rbac_authorization     = true
-  public_network_access_enabled = true
+  public_network_access_enabled = false
+  network_acls {
+    default_action             = "Deny"
+    bypass                     = "AzureServices"
+    ip_rules                   = []
+    virtual_network_subnet_ids = []
+  }
   tags                          = var.tags
 }
 
