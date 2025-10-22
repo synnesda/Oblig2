@@ -118,7 +118,7 @@ jobs:
 
     - name: Upload tfsec results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: tfsec-report
         path: .tfsec
@@ -172,7 +172,7 @@ jobs:
           ```
 
     - name: Upload Dev Plan
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dev-terraform-plan
         path: dev.tfplan
@@ -262,7 +262,7 @@ jobs:
           ```
 
     - name: Upload Test Plan
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-terraform-plan
         path: test.tfplan
