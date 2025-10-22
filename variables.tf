@@ -88,8 +88,8 @@ variable "storage_account_name" {
   default     = ""
   validation {
     condition = var.storage_account_name == "" || (
-      length(var.storage_account_name) >= 3 && 
-      length(var.storage_account_name) <= 24 && 
+      length(var.storage_account_name) >= 3 &&
+      length(var.storage_account_name) <= 24 &&
       can(regex("^[a-z0-9]+$", var.storage_account_name))
     )
     error_message = "Storage account name must be 3-24 characters long and contain only lowercase letters and numbers."
@@ -102,8 +102,8 @@ variable "kv_name" {
   default     = ""
   validation {
     condition = var.kv_name == "" || (
-      length(var.kv_name) >= 3 && 
-      length(var.kv_name) <= 24 && 
+      length(var.kv_name) >= 3 &&
+      length(var.kv_name) <= 24 &&
       can(regex("^[a-zA-Z0-9-]+$", var.kv_name))
     )
     error_message = "Key Vault name must be 3-24 characters long and contain only alphanumeric characters and hyphens."
